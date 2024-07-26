@@ -28,12 +28,4 @@ def createNetwork(inputSize:int, hiddenLayers:tuple, outputSize:int, filename='d
         else:
             print(f'Biases have been randomly initialized between {biasRange[0]} and {biasRange[1]}')
 
-def readNetwork(filename:str):
-    with h5py.File(f'{filename}.hdf5', 'r') as nn:
-        weights = nn['weights'].keys()
-        biases = nn['biases'].keys()
-        for weight, bias in zip(weights, biases):
-            print(weight, bias)
-
-#createNetwork(5,(3,8,5),4)
-readNetwork('default')
+createNetwork(5,(3,8,5),4)
