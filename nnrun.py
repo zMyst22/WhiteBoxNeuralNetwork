@@ -38,7 +38,7 @@ def readLayers(filename):
 
 def runNetwork(filename='default.hdf5', data=np.ndarray):
     wb = readLayers(filename)
-    actScript = [softmax, relu]
+    actScript = [softmax, relu, sigmoid]
     for key, script in zip(wb.keys(), actScript):
         data = activateLayer(data, wb[key]['w'], wb[key]['b'], script)
 
