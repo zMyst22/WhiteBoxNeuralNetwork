@@ -7,36 +7,16 @@ from time import time
 
 def forProp(input, weights, bias, activation=None):
     output=np.array([np.sum(np.multiply(input, weight)) for weight in weights])
-    #output/=np.max(output)
     output+=bias
     if activation == None:
         return output, output
     else:
         return activation(output), output
 
-def updateWeight(lr, weight, target, prediction, lastOutput):
-    weightChange = lr*(target-prediction)*lastOutput
-    newWeight = weight + weightChange
-    return weightChange, newWeight
-
-def updateHiddenWeight():
-    return
-
-def updateBias(lr, bias, target, prediction):
-    biasChange = lr*(target-prediction)
-    newBias = bias + biasChange
-    return biasChange, newBias
-
-def updateHiddenBias():
-    return
-
 def calcLoss(target, outputLayer):
     targets = np.zeros(len(outputLayer))
     targets[target] = 1
     return np.sum(np.subtract(outputLayer, targets)**2 )
-
-def dxLoss(target, prediction):
-    return (target-prediction)*2
 
 def dxSigmoid(input):
     num = nr.sigmoid(input)
@@ -63,31 +43,40 @@ def train(epochs=1000, lr=0.1, nnfile='default.hdf5', trainingData=any):
                 layerOutput, unactivatedOutput = forProp(layerOutput, wb[key]['weights'], wb[key]['biases'], script)
                 networkActivations[key] = layerOutput
                 networkUnactivated[key] = unactivatedOutput
+            
+            def backProp(gradients, layerOutput, layerInput, preActInput, layerPos, layerAct):
+                outputGradients = []
+                for index, grad in enumerate(gradients):
+                    wb[layerPos]['weights'][index]-= lr*grad*layerInput
+                    wb[layerPos]['biases'][index]-= lr*grad
+                    if layerPos > 1:
+                        outputGradients.append(grad*np.multiply(layerAct(preActInput),wb[layerPos]['weights'][index]))
+                if layerPos <=1:
+                    return
+                return outputGradients
 
-            ###OBSOLETE BABYYY LFGOOOOO - Output layer WB Updates (Hidden to Output)###
-            #for (oNeuron, oPrediction), target in zip(enumerate(networkActivations[2]), outputTarget):
-            #    for oWeight, oWeightValue in enumerate(wb[2]['weights'][oNeuron]):
-            #        weightError, newWeight = updateWeight(lr, oWeightValue, target, oPrediction, networkActivations[1][oWeight])
-            #        wb[2]['weights'][oNeuron][oWeight] = newWeight
-            #    wb[2]['biases'][oNeuron] = updateBias(lr, wb[2]['biases'][oNeuron], target, oPrediction)[1]
-
+            dxScripts = np.array([dxSigmoid,dxRelu])
             actualOutput = networkActivations[2]
             expectedOutput = outputTarget
             outputErrors = np.subtract(actualOutput, expectedOutput)
-            oGradients = np.multiply(outputErrors,dxSigmoid(actualOutput))
+            oGradients = np.multiply(outputErrors,dxSigmoid(actualOutput))        
             networkInput = np.array(networkActivations[0])
-            #preActZI = np.array(networkUnactivated[0])
             preActZH = np.array(networkUnactivated[1])
             hiddenOutput = np.array(networkActivations[1])
+            ogradients = backProp(oGradients, None, hiddenOutput, preActZH, 2, dxRelu)
+            for gradient in ogradients:
+                backProp(gradient, None, networkInput, None, 1, None)
+
+            '''
             for index, grad in enumerate(oGradients):
-                update = wb[2]['weights'][index]
-                wb[2]['weights'][index]= np.subtract(update, lr*grad*hiddenOutput)
+                wb[2]['weights'][index]-= lr*grad*hiddenOutput
                 wb[2]['biases'][index]-= lr*grad
-                hGradients = dxRelu(preActZH)*wb[2]['weights'][index]*oGradients[index]
+                hGradients = grad*np.multiply(dxRelu(preActZH),wb[2]['weights'][index])
                 for ind, gr in enumerate(hGradients):
-                    upd = wb[1]['weights'][ind]
-                    wb[1]['weights'][ind]= np.subtract(upd, networkInput*lr*gr)
+                    wb[1]['weights'][ind]-= lr*gr*networkInput
                     wb[1]['biases'][ind]-= lr*gr
+            '''
+
 
             epochLoss += calcLoss(int(data[0]), layerOutput)
         print('Epoch loss: ', epochLoss/len(trainingData))
@@ -124,7 +113,7 @@ if __name__ == '__main__':
     start = time()
     #nb.createNetwork(784, (256,), 10, weightRange=[-1,1], biasRange=[0], filename='default.hdf5')
     np.set_printoptions(precision=8, suppress=True, linewidth=200)
-    train(25, lr=0.01, trainingData=trainingData)
+    train(10, lr=0.01, trainingData=trainingData)
     #saveModel(nr.readLayers('default.hdf5'))
-    end = time
+    end = time()
     print(end-start, "Seconds")
