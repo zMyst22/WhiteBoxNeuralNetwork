@@ -31,6 +31,7 @@ def train(epochs=1000, lr=0.1, nnfile='default.hdf5', trainingData=any):
     for epoch in range(epochs):
         epochLoss = 0
         for data in trainingData:
+            #Left to right
             scripts = np.array([nr.relu, nr.sigmoid])
             networkActivations = {}
             networkUnactivated = {}
@@ -44,30 +45,31 @@ def train(epochs=1000, lr=0.1, nnfile='default.hdf5', trainingData=any):
                 networkActivations[key] = layerOutput
                 networkUnactivated[key] = unactivatedOutput
 
-            def backProp(gradients, layerInput, preActInput, layerPos, layerAct):
-                newGradients = []
-                for index, grad in enumerate(gradients):
-                    wb[layerPos]['weights'][index]-= lr*grad*layerInput
-                    wb[layerPos]['biases'][index]-= lr*grad
-                    if layerPos > 1:
-                        newGradients.append(grad*np.multiply(layerAct(preActInput),wb[layerPos]['weights'][index]))
-                if layerPos <=1:
-                    return None
-                return newGradients
-        
+            def backProp(gradients, layerInputs, preActInputs, numLayers, dxScripts):
+                for index, grad in enumerate(gradients): 
+                    wb[numLayers]['weights'][index]-= lr*grad*layerInputs[numLayers-1]
+                    wb[numLayers]['biases'][index]-= lr*grad
+                    if numLayers > 1:
+                        dxActivation = dxScripts[numLayers-1]
+                        if dxActivation != None:
+                            newGradients = np.array(grad*np.multiply(dxActivation(preActInputs[numLayers-1]),wb[numLayers]['weights'][index]))
+                        else:
+                            newGradients = np.array(grad*np.multiply(preActInputs[numLayers-1],wb[numLayers]['weights'][index]))
+                        backProp(newGradients, layerInputs, preActInputs, numLayers-1, dxScripts)
+                    else:
+                        pass
+
             numLayers = len(wb)
-            dxScripts = [dxSigmoid, dxRelu, None]
-            outputActivation = dxScripts.pop(0)
+            #Left to right
+            dxScripts = [None, dxRelu, dxSigmoid]
+            outputActivation = dxScripts.pop(-1)
             actualOutput = networkActivations[numLayers]
             outputErrors = np.subtract(actualOutput, targetOutput)
             gradients = np.multiply(outputErrors, outputActivation(actualOutput))
-
-            gradients = backProp(gradients, networkActivations[1], networkUnactivated[1], 2, dxRelu)
-            for grads in gradients:
-                backProp(np.array(grads),networkActivations[0], networkUnactivated[0], 1, None)
-
+            backProp(gradients, networkActivations, networkUnactivated, numLayers, dxScripts)
+            
             epochLoss += calcLoss(int(data[0]), layerOutput)
-        print(f'Epoch {epoch} - Loss:', epochLoss/len(trainingData))
+        print(f'Epoch {epoch+1} - Loss:', epochLoss/len(trainingData))
         totalLoss += epochLoss/len(trainingData)
         
     print('Average loss: ', totalLoss/epochs)
@@ -97,9 +99,8 @@ if __name__ == '__main__':
         trainingData = np.array(trainingData).round(2)
 
     start = time()
-    #nb.createNetwork(784, (32,32), 10, weightRange=[-1,1], biasRange=[0], filename='test.hdf5')
+    #nb.createNetwork(784, None, 10, weightRange=[1,1], biasRange=[0], filename='test.hdf5')
     np.set_printoptions(precision=8, suppress=True, linewidth=200)
     train(10, lr=0.01, trainingData=trainingData, nnfile='default.hdf5')
-    #saveModel(nr.readLayers('default.hdf5'))
     end = time()
     print(end-start, "Seconds")
