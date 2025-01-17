@@ -1,6 +1,7 @@
-import numpy as np
-import h5py as h5
 import csv
+import h5py as h5
+import numpy as np
+from PIL import Image
 
 ###Activation Funtions followed by their derivatives###
 
@@ -27,7 +28,9 @@ def actHandler(scripts:list):
     scriptsDict = {'relu' : relu,
                    'dxrelu' : dxRelu,
                    'sigmoid' : sigmoid,
-                   'dxsigmoid' : dxSigmoid}
+                   'dxsigmoid' : dxSigmoid,
+                   'none' : None,
+                   'dxnone' : None}
     actScript = []
     dxActScript = []
     for script in scripts:
@@ -81,6 +84,50 @@ def calcLoss(target, outputLayer):
     targets[target] = 1
     return np.sum(np.subtract(outputLayer, targets)**2 )
 
+def parseImage(layer):
+    print(len(layer))
+    data = np.array(layer)
+    data -= np.min(data)
+    data /= np.max(data)
+    data *= 255
+    neuron = []
+    for i in range(16):
+        j = i*16
+        neuron.append(data[j:j+16])
+    neuron = np.array(neuron)
+    return neuron.astype(int)
+
+#Takes in a numpy array and pa
+def parseImages(layer):
+    neurons = []
+    for line in layer:
+        neuron = []
+        for i in range(28):
+            j = i*28
+            neuron.append(line[j:j+28])
+        neurons.append(neuron)
+    image = []
+    for i in range(16):
+        j = i * 16
+        image.append(neurons[j:j+16])
+    data = []
+    lowest = np.min(layer)
+    highest = np.max(layer)
+    for q in range(16):
+        for n in range(28):
+            row = []
+            for m in range(16):
+                row.extend(image[q][m][n])
+                row.extend([lowest])
+            data.append(row)
+        data.append(np.full(len(row),lowest))
+    
+    data = np.array(data)
+    data -= np.min(data)
+    data /= np.max(data)
+    data *= 255
+    return data.astype(int)
+
 #Takes a HDF5 file and converts the data into a dictionary of Numpy arrays
 def readLayers(filename):
     info = {}
@@ -124,6 +171,13 @@ def runNetwork(filename='default.hdf5', data=np.ndarray, actScript=None):
 
     return np.argmax(data), max(data), data
 
+#Takes in parsed image data and saves it as a png
+def saveImage(imgArray, filename):
+    image_array = np.array(imgArray, dtype=np.uint8)
+    image = Image.fromarray(image_array)
+    image.save(filename)
+    return
+
 #Saves the network into an HDF5 model, with model being the network and modelName being the file name to be saved under
 def saveModel(model:dict, modelName='default.hdf5'):
     with h5.File(modelName, 'w') as m:
@@ -165,6 +219,8 @@ def testNetwork(model, testingData, actScript=None):
              right +=1
         else:
              wrong +=1
+             #print(f'Target Num: {int(data[0])} Predicted Num: {outputNum}, Prediction: {prediction}, Loss: {calcLoss(int(data[0]), outputLayer)}', '\n', outputLayer, '\n')
+             
 
     print(f'Target Num: {int(data[0])} Predicted Num: {outputNum}, Prediction: {prediction}, Loss: {calcLoss(int(data[0]), outputLayer)}', '\n', outputLayer, '\n')
     print(f'Right: {right} \nWrong: {wrong} \nPercentage: {100*right/len(testingData)}% \nLoss: {loss/len(testingData)}')
@@ -173,4 +229,10 @@ def testNetwork(model, testingData, actScript=None):
 if __name__ == '__main__':
     np.set_printoptions(precision=8, suppress=True, linewidth=200)
     #buildNetwork(784, (64,), 10, ['relu','relu','sigmoid'], 'test.hdf5')
-    testNetwork('layer.hdf5', 'short_mnist_test.csv')
+    #untrained = readLayers('default.hdf5')[1]['weights']
+    #trained = readLayers('layer.hdf5')[1]['weights']
+    #diff = trained-untrained
+    #parseImages(wb[1]['weights'])
+    #saveImage(parseImages(trained), 'default.png')
+    #saveImage(parseImages(untrained),'duntrained.png')
+    #saveImage(parseImages(diff), 'diff.png')
